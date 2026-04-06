@@ -27,7 +27,6 @@ RUN apk add --no-cache \
         gd \
         intl \
         mysqli \
-        opcache \
         pcntl \
         pdo_mysql \
         zip \
