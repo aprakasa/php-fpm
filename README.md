@@ -15,7 +15,11 @@ Pre-built PHP-FPM Docker images for WordPress, published to GHCR.
 
 **Base**: `php:${VERSION}-fpm-alpine`
 
-**PHP Extensions**: bcmath, exif, gd (freetype + jpeg + webp), intl, mysqli, opcache, pcntl, pdo_mysql, zip, redis (6.3.0), imagick (3.8.1)
+**PHP Extensions**: bcmath, exif, gd (freetype + jpeg + webp), intl, mysqli, pcntl, pdo_mysql, pdo_sqlite, sqlite3, zip, redis (6.3.0), imagick (3.8.1), Zend OPcache
+
+> `opcache`, `pdo_sqlite`, and `sqlite3` are statically compiled into PHP's official Alpine images — no separate build needed.
+
+**Build**: Multi-stage Dockerfile separates compilation from runtime for smaller images and better layer caching.
 
 **Tools**: WP-CLI
 
