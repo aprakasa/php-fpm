@@ -1,12 +1,8 @@
 ARG PHP_VERSION=8.3
-FROM php:${PHP_VERSION}-fpm-alpine
+
+FROM php:${PHP_VERSION}-fpm-alpine AS builder
 
 RUN apk add --no-cache \
-    bash \
-    curl \
-    git \
-    mysql-client \
-    imagemagick \
     imagemagick-dev \
     libzip-dev \
     icu-dev \
@@ -21,7 +17,7 @@ RUN apk add --no-cache \
         --with-freetype \
         --with-jpeg \
         --with-webp \
-    && docker-php-ext-install -j$(nproc) \
+    && docker-php-ext-install \
         bcmath \
         exif \
         gd \
@@ -31,12 +27,30 @@ RUN apk add --no-cache \
         pdo_mysql \
         zip \
     && pecl install redis-6.3.0 imagick-3.8.1 \
-    && docker-php-ext-enable redis imagick \
-    && apk del $PHPIZE_DEPS linux-headers
+    && docker-php-ext-enable redis imagick
 
-RUN curl -sL https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar \
-    -o /usr/local/bin/wp \
+FROM php:${PHP_VERSION}-fpm-alpine
+
+RUN apk add --no-cache \
+    bash \
+    curl \
+    git \
+    mysql-client \
+    imagemagick \
+    libzip \
+    icu-libs \
+    libpng \
+    libjpeg-turbo \
+    freetype \
+    libwebp \
+    oniguruma \
+    sqlite-libs \
+    && curl -sL https://raw.githubusercontent.com/wp-cli/builds/gh-pages/phar/wp-cli.phar \
+        -o /usr/local/bin/wp \
     && chmod +x /usr/local/bin/wp
+
+COPY --from=builder /usr/local/lib/php/extensions/ /usr/local/lib/php/extensions/
+COPY --from=builder /usr/local/etc/php/conf.d/ /usr/local/etc/php/conf.d/
 
 COPY conf/opcache.ini /usr/local/etc/php/conf.d/opcache.ini
 COPY conf/custom.ini /usr/local/etc/php/conf.d/custom.ini
