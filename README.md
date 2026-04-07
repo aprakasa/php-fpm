@@ -1,5 +1,12 @@
 # php-fpm
 
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg?style=flat)](LICENSE)
+[![CI](https://img.shields.io/github/actions/workflow/status/aprakasa/php-fpm/build.yml?style=flat&label=CI&logo=github)](https://github.com/aprakasa/php-fpm/actions/workflows/build.yml)
+[![PHP 8.3](https://img.shields.io/badge/PHP-8.3-777BB4.svg?style=flat&logo=php&logoColor=white)](https://www.php.net/)
+[![PHP 8.4](https://img.shields.io/badge/PHP-8.4-777BB4.svg?style=flat&logo=php&logoColor=white)](https://www.php.net/)
+[![PHP 8.5](https://img.shields.io/badge/PHP-8.5-777BB4.svg?style=flat&logo=php&logoColor=white)](https://www.php.net/)
+[![GHCR](https://img.shields.io/badge/ghcr.io-aprakasa%2Fphp--fpm-blue.svg?style=flat&logo=github&logoColor=white)](https://github.com/aprakasa/php-fpm/pkgs/container/php-fpm)
+
 Pre-built PHP-FPM Docker images for WordPress, published to GHCR.
 
 ## Images
@@ -10,6 +17,20 @@ Pre-built PHP-FPM Docker images for WordPress, published to GHCR.
 | `ghcr.io/aprakasa/php-fpm:8.4` | 8.4 | linux/amd64, linux/arm64 |
 | `ghcr.io/aprakasa/php-fpm:8.5` | 8.5 (default) | linux/amd64, linux/arm64 |
 | `ghcr.io/aprakasa/php-fpm:latest` | 8.5 | linux/amd64, linux/arm64 |
+
+## CI Pipeline
+
+```mermaid
+flowchart LR
+    Push(["Push to main"]) --> Build["GitHub Actions"]
+    Build --> P1["PHP 8.3\namd64 + arm64"]
+    Build --> P2["PHP 8.4\namd64 + arm64"]
+    Build --> P3["PHP 8.5\namd64 + arm64"]
+    P1 --> GHCR1["ghcr.io/.../php-fpm:8.3"]
+    P2 --> GHCR2["ghcr.io/.../php-fpm:8.4"]
+    P3 --> GHCR3["ghcr.io/.../php-fpm:8.5"]
+    P3 --> Latest["ghcr.io/.../php-fpm:latest"]
+```
 
 ## What's Included
 
@@ -78,4 +99,4 @@ Pushes to `main` trigger GitHub Actions builds for all three PHP versions. Tags 
 
 ## License
 
-MIT
+[MIT](LICENSE)
