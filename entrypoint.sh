@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2086
 set -euo pipefail
 
 cleanup() {
@@ -35,7 +36,7 @@ max_tries=30
 counter=0
 until mysqladmin ping -h "${MARIADB_HOST:-mariadb}" -u "${MARIADB_USER}" -p"${MARIADB_PASSWORD}" --silent 2>/dev/null; do
     counter=$((counter + 1))
-    if [ $counter -ge $max_tries ]; then
+    if [ "${counter}" -ge "${max_tries}" ]; then
         echo "ERROR: MariaDB not available after ${max_tries} attempts"
         exit 1
     fi
@@ -85,17 +86,18 @@ if [ ! -f "${WORDPRESS_DIR}/wp-config.php" ]; then
     $WP_CLI config set DISALLOW_FILE_EDIT true --raw
 
     SALTS=$(curl -sf https://api.wordpress.org/secret-key/1.1/salt/ 2>/dev/null || true)
-    if [ -z "$SALTS" ]; then
+    if [ -z "${SALTS}" ]; then
         echo "WARNING: WordPress salt API unreachable, generating local fallback salts"
         SALTS=""
         for key in AUTH SECURE_AUTH LOGGED_IN NONCE; do
             for suffix in KEY SALT; do
-                SALTS="${SALTS}define('${key}_${suffix}', '$(openssl rand -hex 64)');\n"
+                generated_salt=$(openssl rand -hex 64)
+                SALTS="${SALTS}define('${key}_${suffix}', '${generated_salt}');\n"
             done
         done
-        SALTS=$(echo -e "$SALTS")
+        SALTS=$(echo -e "${SALTS}")
     fi
-    grep -q "AUTH_KEY" "${WORDPRESS_DIR}/wp-config.php" || echo "$SALTS" >> "${WORDPRESS_DIR}/wp-config.php"
+    grep -q "AUTH_KEY" "${WORDPRESS_DIR}/wp-config.php" || echo "${SALTS}" >> "${WORDPRESS_DIR}/wp-config.php"
 
     # Multisite configuration
     if [ "${WP_MULTISITE:-no}" != "no" ]; then
@@ -122,13 +124,15 @@ fi
 if ! $WP_CLI core is-installed 2>/dev/null; then
     echo "Installing WordPress..."
     if [ "${WP_MULTISITE:-no}" != "no" ]; then
+        subdomain_flag="false"
+        [ "${WP_MULTISITE}" = "subdomain" ] && subdomain_flag="true"
         $WP_CLI core multisite-install \
             --url="${DOMAIN:-localhost}" \
             --title="${WORDPRESS_SITE_TITLE:-WordPress}" \
             --admin_user="${WORDPRESS_ADMIN_USER:-admin}" \
             --admin_password="${WORDPRESS_ADMIN_PASSWORD}" \
             --admin_email="${WORDPRESS_ADMIN_EMAIL}" \
-            --subdomains=$([ "${WP_MULTISITE}" = "subdomain" ] && echo "true" || echo "false")
+            --subdomains="${subdomain_flag}"
     else
         $WP_CLI core install \
             --url="${DOMAIN:-localhost}" \
@@ -169,7 +173,7 @@ wp_plugin_install redis-cache --activate
 if [ -S "/var/run/redis/redis.sock" ] || [ -n "${REDIS_HOST:-}" ]; then
     max_tries=15
     counter=0
-    until $WP_CLI redis status 2>>/var/log/php/plugin-errors.log | grep -q "Connected" || [ $counter -ge $max_tries ]; do
+    until $WP_CLI redis status 2>>/var/log/php/plugin-errors.log | grep -q "Connected" || [ "${counter}" -ge "${max_tries}" ]; do
         counter=$((counter + 1))
         if ! $WP_CLI redis enable 2>>/var/log/php/plugin-errors.log; then
             echo "WARNING: Redis enable attempt ${counter} failed"
