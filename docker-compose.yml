@@ -1,0 +1,66 @@
+services:
+  php-fpm:
+    image: ghcr.io/aprakasa/php-fpm:8.5
+    restart: unless-stopped
+    depends_on:
+      mariadb:
+        condition: service_healthy
+    environment:
+      MARIADB_HOST: mariadb
+      MARIADB_DATABASE: ${MARIADB_DATABASE:-wordpress}
+      MARIADB_USER: ${MARIADB_USER:-wordpress}
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD:?Set MARIADB_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:?Set MARIADB_ROOT_PASSWORD}
+      DOMAIN: ${DOMAIN:-localhost}
+      CACHE_MODE: ${CACHE_MODE:-fastcgi-cache}
+      WORDPRESS_ADMIN_USER: ${WORDPRESS_ADMIN_USER:-admin}
+      WORDPRESS_ADMIN_PASSWORD: ${WORDPRESS_ADMIN_PASSWORD:?Set WORDPRESS_ADMIN_PASSWORD}
+      WORDPRESS_ADMIN_EMAIL: ${WORDPRESS_ADMIN_EMAIL:?Set WORDPRESS_ADMIN_EMAIL}
+      WORDPRESS_SITE_TITLE: ${WORDPRESS_SITE_TITLE:-WordPress}
+      WP_MULTISITE: ${WP_MULTISITE:-no}
+      SSL: ${SSL:-0}
+      REDIS_HOST: ${REDIS_HOST:-/var/run/redis/redis.sock}
+    volumes:
+      - wordpress_data:/var/www/html
+      - php_socket:/var/run/php-fpm
+
+  nginx:
+    image: nginx:alpine
+    restart: unless-stopped
+    depends_on:
+      - php-fpm
+    ports:
+      - "${NGINX_PORT:-80}:80"
+    volumes:
+      - wordpress_data:/var/www/html
+      - php_socket:/var/run/php-fpm
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+
+  mariadb:
+    image: mariadb:11
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: ${MARIADB_DATABASE:-wordpress}
+      MARIADB_USER: ${MARIADB_USER:-wordpress}
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD:?Set MARIADB_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD:?Set MARIADB_ROOT_PASSWORD}
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:alpine
+    restart: unless-stopped
+    command: redis-server --unixsocket /var/run/redis/redis.sock --unixsocketperm 777
+    volumes:
+      - redis_socket:/var/run/redis
+
+volumes:
+  wordpress_data:
+  php_socket:
+  mariadb_data:
+  redis_socket:
