@@ -155,10 +155,13 @@ fi
 $WP_CLI rewrite structure '/%postname%/' 2>/dev/null || true
 
 # Set file permissions
-echo "Setting file permissions..."
-find "${WORDPRESS_DIR}" -type d -exec chmod 755 {} \;
-find "${WORDPRESS_DIR}" -type f -exec chmod 644 {} \;
-chown -R www-data:www-data "${WORDPRESS_DIR}"
+if [ ! -f "${WORDPRESS_DIR}/.permissions_set" ]; then
+    echo "Setting file permissions..."
+    find "${WORDPRESS_DIR}" -type d -exec chmod 755 {} +
+    find "${WORDPRESS_DIR}" -type f -exec chmod 644 {} +
+    chown -R www-data:www-data "${WORDPRESS_DIR}"
+    touch "${WORDPRESS_DIR}/.permissions_set"
+fi
 
 echo "PHP-FPM setup complete."
 exec php-fpm -F
