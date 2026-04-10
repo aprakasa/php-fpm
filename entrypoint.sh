@@ -1,6 +1,11 @@
 #!/bin/bash
 set -euo pipefail
 
+cleanup() {
+    rm -f /tmp/wp-* 2>/dev/null || true
+}
+trap cleanup EXIT
+
 WORDPRESS_DIR="/var/www/html"
 WP_CLI="wp --path=${WORDPRESS_DIR} --allow-root"
 
