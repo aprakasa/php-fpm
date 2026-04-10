@@ -2,6 +2,7 @@ ARG PHP_VERSION=8.5
 
 FROM php:${PHP_VERSION}-fpm-alpine AS builder
 
+# hadolint ignore=DL3018,SC2086
 RUN apk add --no-cache \
     imagemagick-dev \
     libzip-dev \
@@ -31,6 +32,7 @@ RUN apk add --no-cache \
 
 FROM php:${PHP_VERSION}-fpm-alpine
 
+# hadolint ignore=DL3018
 RUN apk add --no-cache \
     bash \
     curl \
