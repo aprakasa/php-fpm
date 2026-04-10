@@ -1,0 +1,8 @@
+.git
+.github
+.gitignore
+CONTRIBUTING.md
+CHANGELOG.md
+docker-compose.yml
+LICENSE
+README.md
