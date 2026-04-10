@@ -58,4 +58,7 @@ COPY conf/zz-docker.conf /usr/local/etc/php-fpm.d/zz-docker.conf
 COPY entrypoint.sh /entrypoint.sh
 RUN chmod +x /entrypoint.sh
 
+HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+  CMD test -S /var/run/php-fpm/php-fpm.sock || exit 1
+
 ENTRYPOINT ["/entrypoint.sh"]
