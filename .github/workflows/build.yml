@@ -65,7 +65,36 @@ jobs:
             type=semver,pattern={{major}}.{{minor}}-${{ matrix.php-version }}
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' && matrix.php-version == '8.5' }}
 
-      - name: Build and push
+      - name: Build test image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          load: true
+          tags: test-image:${{ matrix.php-version }}
+          cache-from: type=gha,scope=php${{ matrix.php-version }}
+          cache-to: type=gha,scope=php${{ matrix.php-version }},mode=max
+          build-args: PHP_VERSION=${{ matrix.php-version }}
+
+      - name: Smoke test
+        run: |
+          docker run -d --name smoke-test \
+            -e MARIADB_DATABASE=test \
+            -e MARIADB_USER=test \
+            -e MARIADB_PASSWORD=testpw \
+            -e MARIADB_ROOT_PASSWORD=rootpw \
+            -e WORDPRESS_ADMIN_PASSWORD=adminpw \
+            -e WORDPRESS_ADMIN_EMAIL=admin@test.com \
+            "test-image:${{ matrix.php-version }}" || true
+          sleep 3
+          docker exec smoke-test php -m | grep -q redis && echo "PASS: redis extension loaded"
+          docker exec smoke-test php -m | grep -q imagick && echo "PASS: imagick extension loaded"
+          docker exec smoke-test php -m | grep -q opcache && echo "PASS: opcache extension loaded"
+          docker exec smoke-test php -m | grep -q mysqli && echo "PASS: mysqli extension loaded"
+          docker exec smoke-test php -m | grep -q gd && echo "PASS: gd extension loaded"
+          docker exec smoke-test which wp && echo "PASS: wp-cli available"
+          docker rm -f smoke-test
+
+      - name: Build and push multi-platform
         uses: docker/build-push-action@v7
         with:
           context: .
