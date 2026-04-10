@@ -60,9 +60,17 @@ if [ ! -f "${WORDPRESS_DIR}/wp-config.php" ]; then
     $WP_CLI config set DISALLOW_FILE_EDIT true --raw
 
     SALTS=$(curl -sf https://api.wordpress.org/secret-key/1.1/salt/ 2>/dev/null || true)
-    if [ -n "$SALTS" ]; then
-        grep -q "AUTH_KEY" "${WORDPRESS_DIR}/wp-config.php" || echo "$SALTS" >> "${WORDPRESS_DIR}/wp-config.php"
+    if [ -z "$SALTS" ]; then
+        echo "WARNING: WordPress salt API unreachable, generating local fallback salts"
+        SALTS=""
+        for key in AUTH SECURE_AUTH LOGGED_IN NONCE; do
+            for suffix in KEY SALT; do
+                SALTS="${SALTS}define('${key}_${suffix}', '$(openssl rand -hex 64)');\n"
+            done
+        done
+        SALTS=$(echo -e "$SALTS")
     fi
+    grep -q "AUTH_KEY" "${WORDPRESS_DIR}/wp-config.php" || echo "$SALTS" >> "${WORDPRESS_DIR}/wp-config.php"
 
     # Multisite configuration
     if [ "${WP_MULTISITE:-no}" != "no" ]; then
