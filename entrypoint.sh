@@ -4,6 +4,26 @@ set -euo pipefail
 WORDPRESS_DIR="/var/www/html"
 WP_CLI="wp --path=${WORDPRESS_DIR} --allow-root"
 
+wp_plugin_install() {
+    local plugin="$1"
+    shift
+    if ! $WP_CLI plugin install "$plugin" "$@" 2>>/var/log/php/plugin-errors.log; then
+        echo "WARNING: Failed to install plugin: ${plugin}"
+    fi
+}
+
+wp_eval() {
+    if ! $WP_CLI eval "$@" 2>>/var/log/php/plugin-errors.log; then
+        echo "WARNING: WP-CLI eval failed"
+    fi
+}
+
+wp_option_update() {
+    if ! $WP_CLI option update "$@" 2>>/var/log/php/plugin-errors.log; then
+        echo "WARNING: Failed to update option: $1"
+    fi
+}
+
 # Wait for MariaDB
 echo "Waiting for MariaDB..."
 max_tries=30
@@ -120,33 +140,35 @@ echo "Setting up cache mode: ${CACHE_MODE:-fastcgi-cache}"
 
 case "${CACHE_MODE:-fastcgi-cache}" in
     fastcgi-cache)
-        $WP_CLI plugin install nginx-helper --activate 2>/dev/null || true
-        $WP_CLI eval 'get_role("administrator")->add_cap("Nginx Helper | Config"); get_role("administrator")->add_cap("Nginx Helper | Purge cache");' 2>/dev/null || true
-        $WP_CLI option update rt_wp_nginx_helper_options 'a:6:{s:12:"enable_purge";s:1:"1";s:12:"purge_method";s:13:"fastcgi_purge";s:16:"purge_homepage";s:1:"1";s:16:"purge_archives";s:1:"1";s:14:"purge_single";s:1:"1";s:10:"log_level";s:4:"INFO";}' --format=serialize 2>/dev/null || true
+        wp_plugin_install nginx-helper --activate
+        wp_eval 'get_role("administrator")->add_cap("Nginx Helper | Config"); get_role("administrator")->add_cap("Nginx Helper | Purge cache");'
+        wp_option_update rt_wp_nginx_helper_options 'a:6:{s:12:"enable_purge";s:1:"1";s:12:"purge_method";s:13:"fastcgi_purge";s:16:"purge_homepage";s:1:"1";s:16:"purge_archives";s:1:"1";s:14:"purge_single";s:1:"1";s:10:"log_level";s:4:"INFO";}' --format=serialize
         ;;
     wp-rocket)
-        $WP_CLI plugin install wp-rocket --activate 2>/dev/null || true
+        wp_plugin_install wp-rocket --activate
         ;;
     cache-enabler)
-        $WP_CLI plugin install cache-enabler --activate 2>/dev/null || true
+        wp_plugin_install cache-enabler --activate
         ;;
     wp-super-cache)
-        $WP_CLI plugin install wp-super-cache --activate 2>/dev/null || true
+        wp_plugin_install wp-super-cache --activate
         ;;
     redis-cache)
-        $WP_CLI plugin install nginx-helper --activate 2>/dev/null || true
-        $WP_CLI eval 'get_role("administrator")->add_cap("Nginx Helper | Config"); get_role("administrator")->add_cap("Nginx Helper | Purge cache");' 2>/dev/null || true
+        wp_plugin_install nginx-helper --activate
+        wp_eval 'get_role("administrator")->add_cap("Nginx Helper | Config"); get_role("administrator")->add_cap("Nginx Helper | Purge cache");'
         ;;
 esac
 
 # Install and enable Redis object cache
-$WP_CLI plugin install redis-cache --activate 2>/dev/null || true
+wp_plugin_install redis-cache --activate
 if [ -S "/var/run/redis/redis.sock" ] || [ -n "${REDIS_HOST:-}" ]; then
     max_tries=15
     counter=0
-    until $WP_CLI redis status 2>/dev/null | grep -q "Connected" || [ $counter -ge $max_tries ]; do
+    until $WP_CLI redis status 2>>/var/log/php/plugin-errors.log | grep -q "Connected" || [ $counter -ge $max_tries ]; do
         counter=$((counter + 1))
-        $WP_CLI redis enable 2>/dev/null || true
+        if ! $WP_CLI redis enable 2>>/var/log/php/plugin-errors.log; then
+            echo "WARNING: Redis enable attempt ${counter} failed"
+        fi
         sleep 2
     done
 fi
