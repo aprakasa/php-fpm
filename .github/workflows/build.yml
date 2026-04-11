@@ -122,8 +122,52 @@ jobs:
           docker exec smoke-test which wp && echo "PASS: wp-cli available"
           docker rm -f smoke-test
 
+  scan:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      security-events: write
+    strategy:
+      matrix:
+        php-version: ['8.3', '8.4', '8.5']
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Download image artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: image-${{ matrix.php-version }}
+          path: /tmp
+
+      - name: Load image
+        run: docker load -i /tmp/image.tar
+
+      - name: Trivy vulnerability scan (SARIF report)
+        uses: aquasecurity/trivy-action@v0.35.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:ci-${{ matrix.php-version }}
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+          severity: 'CRITICAL,HIGH'
+
+      - name: Upload Trivy SARIF
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+          category: 'trivy-php-${{ matrix.php-version }}'
+
+      - name: Trivy gate (block on CRITICAL)
+        uses: aquasecurity/trivy-action@v0.35.0
+        with:
+          image-ref: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:ci-${{ matrix.php-version }}
+          format: 'table'
+          exit-code: '1'
+          severity: 'CRITICAL'
+
   push:
-    needs: test
+    needs: [test, scan]
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     permissions:
