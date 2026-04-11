@@ -41,6 +41,18 @@ jobs:
         with:
           dockerfile: Dockerfile
 
+      - name: Lint YAML files
+        uses: ibiqlik/action-yamllint@v3
+        with:
+          config_data: |
+            extends: default
+            rules:
+              line-length:
+                max: 120
+              truthy:
+                check-keys: false
+              document-start: disable
+
   build:
     needs: lint
     runs-on: ubuntu-latest
