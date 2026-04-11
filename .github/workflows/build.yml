@@ -275,3 +275,39 @@ jobs:
             "https://github.com/${{ github.repository }}/" \
             --certificate-oidc-issuer \
             "https://token.actions.githubusercontent.com"
+
+  cleanup:
+    needs: sign
+    if: >-
+      github.event_name == 'push' &&
+      github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      packages: write
+    steps:
+      - name: Prune old untagged images from GHCR
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          OWNER="${{ github.repository_owner }}"
+          PKG="${{ github.repository }}"
+          PKG="${PKG#*/}"
+          echo "Pruning untagged versions of $PKG (keeping latest 5)"
+          IDS=$(gh api \
+            -H "Accept: application/vnd.github+json" \
+            "/users/$OWNER/packages/container/$PKG/versions?per_page=100" \
+            --jq '.[] | select(.metadata.container.tags | length == 0) | .id' \
+            2>/dev/null || true)
+          KEPT=0
+          for VID in $IDS; do
+            KEPT=$((KEPT + 1))
+            if [ "$KEPT" -le 5 ]; then
+              echo "Keeping untagged version $VID ($KEPT/5)"
+              continue
+            fi
+            echo "Deleting untagged version $VID"
+            gh api -X DELETE \
+              -H "Accept: application/vnd.github+json" \
+              "/users/$OWNER/packages/container/$PKG/versions/$VID" \
+              || echo "WARN: failed to delete $VID"
+          done
